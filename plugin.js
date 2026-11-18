@@ -1,12 +1,13 @@
 // Self-contained Buzz 1.x plugin. No runtime imports or build step.
 export const inject = ["react", "agents", "host"];
 export const BRIDGE_NAME = "buzz_codex_mcp";
-export const PLUGIN_VERSION = "0.1.0";
+export const PLUGIN_VERSION = "0.1.1";
 const SYNCED_SETTINGS_SCHEMA = { model: "string", effort: "string", scope: ["thread", "channel"] };
 const STORAGE_PREFIX = "digital.panos.buzz-plugin-codex-with-mcp/session/";
 const DEFAULT_WORKSPACE = "~/.buzz";
 const MAX_FRAME = 4 * 1024 * 1024;
 const TRANSCRIPT_TURNS = 20;
+const MODEL_CATALOG_TTL_MS = 15_000;
 const IDLE_PROCESS_MS = 2 * 60_000;
 const MAX_PROCESS_AGE_MS = 10 * 60_000;
 const MAX_IDLE_PROCESSES = 4;
@@ -572,7 +573,44 @@ export class CodexMcpRuntime {
     this.listeners = new Set();
     this.connections = new Map();
     this.idle = new Map();
+    this.modelCatalogs = new Map();
+    this.modelCatalogController = new AbortController();
     this.disposed = false;
+  }
+
+  async models(agent) {
+    if (agent.protection || agent.configProblem) return { current: "", models: [] };
+    const signal = this.modelCatalogController.signal;
+    signal.throwIfAborted();
+    const config = settings(agent.config);
+    const workspace = config.workspace.trim();
+    const now = Date.now();
+    for (const [path, entry] of this.modelCatalogs) {
+      if (entry.expiresAt <= now) this.modelCatalogs.delete(path);
+    }
+    let entry = this.modelCatalogs.get(workspace);
+    if (!entry) {
+      // Composer discovery and delivery validation can ask for the same catalog.
+      const ready = readModelCatalog(this.host, workspace, signal);
+      entry = { ready, expiresAt: Infinity };
+      this.modelCatalogs.set(workspace, entry);
+      void ready.then(
+        () => { entry.expiresAt = Date.now() + MODEL_CATALOG_TTL_MS; },
+        () => { this.modelCatalogs.delete(workspace); },
+      );
+    }
+    const catalog = await entry.ready;
+    signal.throwIfAborted();
+    const current = config.model || catalog.defaultModel;
+    const model = catalog.models.find((option) => option.value === current);
+    if (!model) return { current, models: current ? [{ id: current, label: current, efforts: [] }] : [] };
+    const resting = config.effort || catalog.configuredEffort || model.defaultEffort;
+    return { current, models: [{
+      id: current,
+      label: model.label,
+      efforts: model.efforts.map((id) => ({ id, label: effortLabel(id) })),
+      ...(model.efforts.includes(resting) ? { effort: resting } : {}),
+    }] };
   }
 
   subscribe = (listener) => {
@@ -927,8 +965,14 @@ export class CodexMcpRuntime {
   }
   async dispose() {
     this.disposed = true;
-    await this.retire();
-    this.listeners.clear();
+    const catalogs = Promise.allSettled([...this.modelCatalogs.values()].map((entry) => entry.ready));
+    this.modelCatalogController.abort();
+    this.modelCatalogs.clear();
+    try { await this.retire(); }
+    finally {
+      await catalogs;
+      this.listeners.clear();
+    }
   }
 }
 
@@ -1304,6 +1348,7 @@ export function apply(ctx) {
     timeoutMs: 30 * 60_000,
     resumes: true,
     protectionUnavailable: "This plugin does not implement protected-agent containment.",
+    models: (agent) => runtime.models(agent),
     run: (delivery) => runtime.run(delivery),
     runOnce: (turn) => runtime.runOnce(turn),
     retire: async (key) => { await runtime.retire(key); clearDraft(key); },

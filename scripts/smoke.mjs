@@ -296,14 +296,25 @@ try {
     getItem: (key) => values.get(key) ?? null,
     setItem: (key, value) => values.set(key, value),
   });
+  // The stub accepts arbitrary model names. Use a listed model for the composer
+  // check so its available effort levels come from the installed Codex catalog.
+  const model = catalog.models.find(({ efforts }) => efforts.includes("low") && efforts.includes("high"));
+  assert.ok(model, "the real catalog must offer a model with Low and High");
+  const agent = { key: "fixture", config: settings({ workspace: temporaryDirectory, model: model.value }) };
+  const choices = await runtime.models(agent);
+  assert.equal(choices.current, model.value);
+  assert.equal(choices.models[0].effort, "high");
+  const pick = choices.models[0].efforts.find(({ id }) => id === "low");
+  assert.ok(pick, "the real catalog must offer the effort the owner can pick");
   runtime.store.write(runtime.store.key("fixture", "runtime-smoke"), {
     threadId: thread.id, cwd: temporaryDirectory, cursor: "fixture",
   });
   const beforeLargeResume = modelInputs.length;
   const deadline = new AbortController();
-  const handed = runtime.run({ agent: { key: "fixture" }, config: settings({ workspace: temporaryDirectory }),
+  const handed = runtime.run({ agent, config: agent.config, effort: pick.id,
     signal: deadline.signal, workingUntil: (pending) => { activity.push(pending); } });
   await runtimeStarted;
+  assert.equal(modelInputs[beforeLargeResume].reasoning?.effort, "low", "the selected effort must reach the resumed model request");
   const resumedInputs = JSON.stringify(modelInputs[beforeLargeResume].input);
   assert.ok(resumedInputs.includes(historyMarker), "resumed execution must retain the saved conversation's history");
   assert.ok(resumedInputs.length > 4 * 1024 * 1024, "the real model request must include the oversized fixture history");
@@ -339,9 +350,10 @@ try {
   const warmSpawns = nativeSpawns, beforeWarmInitializations = initializations;
   const beforeUpdate = modelInputs.length;
   const silentActivity = [];
-  await runtime.run({ agent: { key: "fixture" }, config: settings({ workspace: temporaryDirectory }),
+  await runtime.run({ agent, config: agent.config,
     signal: AbortSignal.timeout(20_000), workingUntil: (pending) => { silentActivity.push(pending); } });
   await Promise.all(silentActivity);
+  assert.equal(modelInputs[beforeUpdate].reasoning?.effort, "high", "an unpicked follow-up must use the local default again");
   assert.equal(nativeSpawns, warmSpawns, "a follow-up must reuse its Codex process");
   assert.equal(runtimeBridges, 2, "each turn must receive its own Buzz bridge");
   assert.ok(initializations > beforeWarmInitializations, "Codex must initialize its new Buzz bridge");
@@ -374,7 +386,7 @@ try {
   assert.equal(runtime.jobs.size, 0);
   assert.equal(nativeSpawns, warmSpawns + 1, "standalone execution must own its process");
   assert.deepEqual(fallbacks, [], "a standalone turn has no implicit publication destination");
-  console.log("PASS: real Codex reads and publishes, blocks an unrelated write, reuses a conversation process with fresh bridges and MCP configuration, resumes oversized history with updated and cleared current developer context, isolates live/saved Activity reads, survives delivery expiry, releases final-reply activity before cleanup, accepts silent completion and executes standalone Attention without a saved binding or fallback destination.");
+  console.log("PASS: real Codex reads and publishes, blocks an unrelated write, applies per-turn thinking then restores the default, reuses a conversation process with fresh bridges and MCP configuration, resumes oversized history with updated and cleared current developer context, isolates live/saved Activity reads, survives delivery expiry, releases final-reply activity before cleanup, accepts silent completion and executes standalone Attention without a saved binding or fallback destination.");
 } catch (error) {
   console.error(error.message);
   // This environment contains only fixture servers, so stderr has no user configuration.

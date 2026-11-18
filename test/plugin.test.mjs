@@ -56,6 +56,7 @@ function settingsView(f) {
     },
     remount(props) { state.length = 0; return this.render(props); },
     retire(key) { return registered.retire(key); },
+    models: (agent) => registered.models(agent),
     run: (delivery) => registered.run(delivery),
     runOnce: (turn) => registered.runOnce(turn),
     all,
@@ -256,6 +257,75 @@ test("model discovery releases its process on failure and does not start after c
   const controller = new AbortController(); controller.abort();
   await assert.rejects(readModelCatalog(f.host, "~/.buzz", controller.signal), /abort/i);
   assert.equal(f.processes.length, 1);
+});
+
+test("the registered composer slider offers the current model's efforts and preserves implicit defaults", async (t) => {
+  const f = fixture({ normalized: { model: "sol", model_reasoning_effort: "high" }, modelPages: [{ data: [
+    { model: "sol", displayName: "Sol", isDefault: true, defaultReasoningEffort: "medium",
+      supportedReasoningEfforts: [{ reasoningEffort: "low" }, { reasoningEffort: "high" }, { reasoningEffort: "xhigh" }] },
+    { model: "fast", displayName: "Fast", defaultReasoningEffort: "low",
+      supportedReasoningEfforts: [{ reasoningEffort: "low" }, { reasoningEffort: "medium" }] },
+  ], nextCursor: null }] });
+  const view = settingsView(f);
+  t.after(() => view.dispose());
+  const [inherited, configured] = await Promise.all([
+    view.models({ config: {} }),
+    view.models({ config: { workspace: " ~/.buzz ", model: "fast", effort: "medium" } }),
+  ]);
+  assert.deepEqual(inherited, { current: "sol", models: [{
+    id: "sol", label: "Sol", effort: "high", efforts: [
+      { id: "low", label: "Low" }, { id: "high", label: "High" }, { id: "xhigh", label: "Extra high" },
+    ],
+  }] });
+  assert.deepEqual(configured, { current: "fast", models: [{
+    id: "fast", label: "Fast", effort: "medium", efforts: [{ id: "low", label: "Low" }, { id: "medium", label: "Medium" }],
+  }] });
+  assert.equal((await view.models({ config: { model: "fast" } })).models[0].effort, undefined);
+  assert.deepEqual(await view.models({ config: { model: "custom" } }), {
+    current: "custom", models: [{ id: "custom", label: "custom", efforts: [] }],
+  });
+  assert.equal(f.processes.length, 1, "agents in the same workspace share discovery and immediate revalidation");
+  assert.equal(f.processes[0].ended, true);
+  assert.equal(f.bridges.length, 0);
+  assert.ok(!f.calls.some((call) => call.method.startsWith("thread/") || call.method.startsWith("turn/")));
+});
+
+test("composer discovery retries a failed catalog and skips unavailable agents", async (t) => {
+  const f = fixture({ modelPages: [{ data: [{ model: "sol", isDefault: true, defaultReasoningEffort: "low",
+    supportedReasoningEfforts: [{ reasoningEffort: "low" }, { reasoningEffort: "high" }] }], nextCursor: null }] });
+  const resolve = f.host.resolveDirectory;
+  let attempts = 0;
+  f.host.resolveDirectory = async (...args) => {
+    if (++attempts === 1) throw new Error("Workspace missing");
+    return resolve(...args);
+  };
+  const view = settingsView(f);
+  t.after(() => view.dispose());
+  assert.deepEqual(await view.models({ configProblem: "unavailable" }), { current: "", models: [] });
+  assert.deepEqual(await view.models({ protection: {} }), { current: "", models: [] });
+  assert.equal(attempts, 0);
+  await assert.rejects(view.models({ config: {} }), /Workspace missing/);
+  assert.equal((await view.models({ config: {} })).models[0].effort, "low");
+  assert.equal(attempts, 2);
+});
+
+test("disabling the plugin drains a composer catalog that is still opening", async () => {
+  const f = fixture();
+  const spawn = f.host.spawn;
+  const spawned = deferred(), continueOpening = deferred();
+  f.host.spawn = async (...args) => {
+    const process = await spawn(...args);
+    spawned.resolve(process);
+    await continueOpening.promise;
+    return process;
+  };
+  const view = settingsView(f);
+  const rejected = assert.rejects(view.models({ config: {} }), /connection closed|abort/i);
+  const process = await spawned.promise;
+  const disposed = view.dispose();
+  continueOpening.resolve();
+  await Promise.all([rejected, disposed]);
+  assert.equal(process.ended, true);
 });
 
 test("model dropdown defaults and supported efforts follow the selected model", () => {

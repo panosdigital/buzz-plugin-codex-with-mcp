@@ -7,6 +7,7 @@ A **panosdigital** plugin that runs local Codex agents in Buzz with the MCP serv
 - Use enabled local and remote Codex MCP servers with their configured authentication and tool restrictions.
 - Reply through Buzz tools under the agent's own identity and permissions.
 - Choose a model and supported reasoning effort from the local Codex catalog.
+- Set thinking effort from Buzz’s composer without changing the agent’s saved settings.
 - Keep separate conversations per thread or per channel, with saved session bindings.
 - Open live and saved transcripts from an agent's activity bubble, with expandable tool details and code formatting.
 - Use Stop and New session controls, with explicit execution-access settings.
@@ -36,6 +37,10 @@ Use **Browse** to retain a reloadable source-folder link. Buzz's normal install 
 
 Development and public builds use plugin ID `digital.panos.buzz-plugin-codex-with-mcp` and agent type `digital.panos.buzz-plugin-codex-with-mcp/codex-mcp`. Both use the same local session-storage namespace, `digital.panos.buzz-plugin-codex-with-mcp/session/`.
 
+## Thinking controls in the composer
+
+When you mention one of your Codex with MCP agents, open the composer’s model and effort controls to pick a thinking level for its current model. Ordinary messages apply the choice to the next run. Solo chats remember their choice until you reset it. Set the agent’s model and default thinking level in its Identity settings.
+
 ## Workspace and execution access
 
 Workspace is the agent's starting directory and the main write boundary in workspace-only mode. The default is `~/.buzz`; choose a narrower project directory when appropriate. Reads outside that tree, permitted temporary directories and additional configured roots follow Codex's effective policy.
@@ -64,7 +69,7 @@ The plugin stores session IDs, workspace, prompt cursor and optional conversatio
 
 ## Limitations and troubleshooting
 
-- Protected agents, execution targets, voice, Compact, usage reporting and a per-message model picker are not implemented.
+- Protected agents, execution targets, voice, Compact and usage reporting are not implemented.
 - Each provider uses separate sessions. When switching types, supported destinations carry over instructions and custom workspace paths. Codex with MCP and the bundled Codex and Claude types share the `~/.buzz` default. Review the new provider's settings.
 - Conversational turns can reuse their Codex process for up to two minutes after completion. The plugin keeps up to four idle processes and starts a fresh one on the next turn once a process is ten minutes old. Each turn gets a fresh Buzz tool connection and reloads the configured MCP servers when Codex resumes the thread. Run utilities that need to outlive a turn under a separate service manager.
 - An initial visible MCP tool list may be incomplete while optional servers start. Tool discovery alone does not verify authentication or a successful call.
