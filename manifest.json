@@ -1,0 +1,11 @@
+{
+  "id": "digital.panos.buzz-plugin-codex-with-mcp",
+  "name": "Codex with MCP",
+  "apiVersion": 1,
+  "description": "Run local Codex agents with their enabled MCP servers in Buzz 1.x.",
+  "host": {
+    "files": true,
+    "mcp": true,
+    "processes": [{ "id": "codex", "program": "codex", "args": ["app-server"] }]
+  }
+}

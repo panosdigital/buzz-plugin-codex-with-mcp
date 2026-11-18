@@ -1,0 +1,8 @@
+.DS_Store
+.env
+.env.*
+*.log
+.scratch/
+node_modules/
+coverage/
+/aux/

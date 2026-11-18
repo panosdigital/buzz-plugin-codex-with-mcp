@@ -1,0 +1,14 @@
+{
+  "name": "buzz-plugin-codex-with-mcp",
+  "version": "0.1.0",
+  "author": "panosdigital",
+  "license": "MIT AND Apache-2.0",
+  "private": true,
+  "type": "module",
+  "description": "A standalone Codex agent harness with MCP support for Buzz 1.x",
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check plugin.js",
+    "smoke": "node scripts/smoke.mjs"
+  }
+}
