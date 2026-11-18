@@ -1010,15 +1010,35 @@ function components(React, host, runtime) {
     const catalog = useCatalog(config.workspace, identity);
     const choices = modelChoices(catalog, config);
     const update = (name) => (event) => onChange({ ...config, [name]: event.target.value });
-    const select = (name, title, options, extra = {}) => h("div", {
-      className: "buzz-select", "data-variant": "compact", "data-appearance": "outlined",
-      style: { minWidth: 0, maxWidth: "100%" },
-    }, h("select", {
-      id: `${id}-${name}`, "aria-label": title, role: "combobox", "data-buzz-ui": "",
-      className: "buzz-button", "data-variant": "outline", "data-size": "sm",
-      disabled, value: config[name], onChange: update(name),
-      style: { appearance: "auto", minWidth: 0, maxWidth: "100%" }, ...extra,
-    }, options.map(({ value, label, disabled }) => h("option", { key: value, value, disabled }, label))));
+    const select = (name, title, options, { disabled: unavailable = disabled, onChange: choose = update(name) } = {}) => {
+      const matchHarness = name === "model" || name === "effort";
+      return h("div", {
+        className: "buzz-select", "data-variant": "compact", "data-appearance": "outlined",
+        style: { minWidth: 0, maxWidth: "100%", position: matchHarness ? "relative" : undefined },
+      }, h("select", {
+        id: `${id}-${name}`, "aria-label": title, role: "combobox", "data-buzz-ui": "",
+        className: "buzz-button", "data-variant": "outline", "data-size": "sm",
+        "data-button-shape": matchHarness ? "control" : undefined,
+        "data-disabled": matchHarness && unavailable ? "" : undefined,
+        disabled: unavailable, value: config[name], onChange: choose,
+        style: {
+          appearance: matchHarness ? "none" : "auto", minWidth: 0, maxWidth: "100%",
+          ...(matchHarness && {
+            fieldSizing: "content", textOverflow: "ellipsis",
+            paddingInlineEnd: "calc(2 * var(--space-4) + var(--space-row-gap))",
+          }),
+        },
+      }, options.map(({ value, label, disabled }) => h("option", { key: value, value, disabled }, label))),
+      matchHarness && h("svg", {
+        "aria-hidden": true, focusable: "false", viewBox: "0 0 24 24",
+        fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round",
+        style: {
+          position: "absolute", insetInlineEnd: "var(--space-4)", insetBlockStart: "50%", transform: "translateY(-50%)",
+          width: "var(--space-4)", height: "var(--space-4)", pointerEvents: "none",
+          color: unavailable ? "var(--text-unavailable)" : "var(--text-standard)",
+        },
+      }, h("path", { d: "m6 9 6 6 6-6" })));
+    };
     const row = (name, title, control) => h("div", { key: name, "data-buzz-ui": "", className: "buzz-preference-row" },
       h("div", { className: "buzz-preference-row-content" },
         h("label", { htmlFor: `${id}-${name}`, className: "buzz-preference-row-label" }, title)),
