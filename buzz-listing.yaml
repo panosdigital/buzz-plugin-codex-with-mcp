@@ -1,0 +1,24 @@
+tagline: Run Codex agents in Buzz with your configured MCP servers
+description: |
+  Codex with MCP adds a local Codex agent type to Buzz Desktop. It uses the
+  enabled MCP servers from your Codex configuration, including their authentication,
+  approval policies, and tool filters.
+
+  Choose a Codex model and thinking effort, keep separate conversations by
+  thread or channel, and view transcripts from the agent's activity bubble.
+  The plugin requires a locally installed, signed-in Codex CLI and runs it on
+  your device. Buzz reviews the requested process, file, and MCP access at install.
+category: agents
+tags: [codex, mcp, agent-harness]
+setup:
+  - title: Set up Codex
+    detail: Sign in to the local Codex CLI and confirm the MCP servers you want are enabled in Codex. Make sure Buzz can find the codex executable.
+  - title: Install in Buzz Desktop
+    detail: Review the plugin's process, file, and MCP access when you install it. Enable the plugin if needed.
+  - title: Create a Codex with MCP agent
+    detail: Select Codex with MCP as the agent type, choose its workspace, and add its instructions.
+  - title: Try an MCP tool
+    detail: Ask the agent for a read-only action using one of your configured MCP servers and verify the result in Buzz.
+links:
+  docs: https://github.com/panosdigital/buzz-plugin-codex-with-mcp#install-from-git
+  support: https://github.com/panosdigital/buzz-plugin-codex-with-mcp/issues

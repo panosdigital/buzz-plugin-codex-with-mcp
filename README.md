@@ -1,6 +1,6 @@
 # Codex with MCP for Buzz
 
-A **panosdigital** plugin that runs local Codex agents in Buzz with the MCP servers already configured for Codex.
+A **panosdigital** plugin that runs local [Codex](https://github.com/openai/codex) agents in [Buzz](https://buzz.xyz) with the MCP servers already configured for Codex.
 
 ## Features
 
@@ -22,9 +22,18 @@ A **panosdigital** plugin that runs local Codex agents in Buzz with the MCP serv
 
 There is no plugin dependency-install or build step. The runtime is the self-contained `plugin.js` module plus `manifest.json`; artwork is included in the source folder.
 
+## Install from Git
+
+1. In Buzz Desktop, open **Settings → Plugins → Manage plugins → Add**.
+2. In **Git or GitHub repository**, enter `https://github.com/panosdigital/buzz-plugin-codex-with-mcp`. Leave **Branch or tag** blank to follow `main`, or enter a tag from [GitHub Releases](https://github.com/panosdigital/buzz-plugin-codex-with-mcp/releases) to install that release.
+3. Review the process, file and MCP access, then confirm installation and enable the plugin.
+4. Create an agent with the **Codex with MCP** type. Choose its workspace and instructions, then ask it for a read-only action using one of your configured MCP servers.
+
+For an existing Git installation, use **Check for updates** in the plugin's settings.
+
 ## Install from a local folder
 
-This repository is being prepared for a future release. No public download or installation URL is available yet.
+Download and extract a source archive from [GitHub Releases](https://github.com/panosdigital/buzz-plugin-codex-with-mcp/releases).
 
 1. Obtain a reviewed source folder containing `manifest.json`, `plugin.js` and `README.md`.
 2. In Buzz, open **Settings → Plugins → Manage plugins → Add → Browse** and select that folder.
